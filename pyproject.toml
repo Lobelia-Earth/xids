@@ -20,13 +20,19 @@ indicator_delta_scaling = { path = ".", editable = true }
 
 [tool.pixi.dependencies]
 xarray = ">=2026.4.0,<2027"
+zarr = ">=3.1.6,<4"
+dask = ">=2026.3.0,<2027"
 
 [tool.pixi.feature.dev.dependencies]
 xsdba = "*"
 jupyter = ">=1.1.1,<2"
+xclim = ">=0.60.0,<0.61"
+nc-time-axis = ">=1.4.1,<2"
+ruff = ">=0.15.11,<0.16"
 
 [tool.pixi.environments]
 default = ["dev"]
+
 
 [dependency-groups]
 dev = ["ibicus>=1.2.0,<2"]
