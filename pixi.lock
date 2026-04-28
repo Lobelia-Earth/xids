@@ -2285,7 +2285,7 @@ packages:
 - pypi: ./
   name: indicator-delta-scaling
   version: 0.1.0
-  sha256: d947ed9be0f8fa822e8e41f1204c2410740c1bf6119dbcf2f7d47abca2ea92fc
+  sha256: 4822efbb4b7ccd8adee53200bd8dd576991c00b44d679ee8a30c8080b6c9ae5f
   requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/noarch/ipykernel-7.2.0-pyh5552912_1.conda
   sha256: 5c1f3e874adaf603449f2b135d48f168c5d510088c78c229bda0431268b43b27
