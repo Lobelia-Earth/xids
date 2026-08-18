@@ -10,7 +10,7 @@ import inspect
 from xids import utils
 
 
-class IDS:
+class IndicatorDeltaScaling:
     def __init__(
         self,
         hist_period: Union[List[str], Tuple[str, str]],
