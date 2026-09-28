@@ -94,8 +94,15 @@ class IndicatorDeltaScaling:
         with ProgressBar():
 
             if correct_threshold:
-                thresh_corrected = utils.correct_threshold(utils.slice_data(model_data, self.hist_period), utils.slice_data(reference_data, self.hist_period), **kwargs)
-                kwargs_model = {'thresh': thresh_corrected}
+                if isinstance(thresh, list):
+                    thresh_corrected_list = []
+                    for thi in thresh:
+                        thresh_corrected_i = utils.correct_threshold(utils.slice_data(model_data, self.hist_period), utils.slice_data(reference_data, self.hist_period), thresh=thi, delta_mode=delta_mode)
+                        thresh_corrected_list.append(thresh_corrected_i)
+                        kwargs_model = {'thresh': thresh_corrected_list}
+                else:
+                    thresh_corrected = utils.correct_threshold(utils.slice_data(model_data, self.hist_period), utils.slice_data(reference_data, self.hist_period), **kwargs)
+                    kwargs_model = {'thresh': thresh_corrected}
             else:
                 kwargs_model = kwargs
             kwargs_ref = kwargs

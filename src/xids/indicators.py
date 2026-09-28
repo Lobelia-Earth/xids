@@ -25,3 +25,28 @@ def get_drought_dur(spi: xr.DataArray, threshold: float = -1, freq: str = 'YS') 
     # Check xclim.indices.generic.spell_length_statistics instead
     spi_drought = xr.where(spi < threshold, 1, 0).resample(time=freq).sum()
     return spi_drought
+
+def get_dtrx(tasmax: xr.DataArray, tasmin: xr.DataArray, freq: str = '1YS') -> xr.DataArray:
+    dtr = tasmax - tasmin
+    return dtr.resample(time=freq).max()
+
+
+def get_cooldd(tasmin: xr.DataArray, tas: xr.DataArray, tasmax: xr.DataArray, thresh: Union[float, List[float], List[xr.DataArray]], freq = '1YS') -> xr.DataArray:
+    # Spinoni et al. 2018
+    if isinstance(thresh, list):  # Check if thresholds is a list
+        thresh_tasmin, thresh_tas, thresh_tasmax = thresh
+    else:
+        thresh_tasmin = thresh
+        thresh_tas = thresh
+        thresh_tasmax = thresh
+    cdd_data1 = 0*tas
+    cdd_data2 = (tasmax - thresh_tasmax) / 4
+    cdd_data3 = ((tasmax - thresh_tasmax) / 2) - ((thresh_tasmin-tasmin) / 4)
+    cdd_data4 = (tas - thresh_tas)
+
+    cdd_data = cdd_data1
+    cdd_data = xr.where((tas <= thresh_tas) & (thresh_tasmax < tasmax), cdd_data2, cdd_data)
+    cdd_data = xr.where((tasmin < thresh_tasmin) & (thresh_tas < tas), cdd_data3, cdd_data)
+    cdd_data = xr.where((tasmin >= thresh_tasmin), cdd_data4, cdd_data)
+
+    return cdd_data.resample(time=freq).sum()
