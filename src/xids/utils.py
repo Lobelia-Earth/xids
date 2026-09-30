@@ -87,6 +87,12 @@ def correct_threshold(model_data: xr.DataArray,
     elif delta_mode == '*':
         th_q = xr.where((q_th == 1), th_q*(threshold/ref_max), th_q)
         th_q = xr.where((q_th == 0), th_q*(threshold/ref_min), th_q)
+
+    # Keep units so xclim indicators can interpret the corrected threshold
+    if isinstance(thresh, str) and ' ' in thresh.strip():
+        th_q.attrs['units'] = thresh.strip().split(' ', 1)[1]
+    elif 'units' in model_data.attrs:
+        th_q.attrs['units'] = model_data.attrs['units']
     return th_q
 
 

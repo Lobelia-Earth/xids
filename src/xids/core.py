@@ -25,10 +25,10 @@ class IndicatorDeltaScaling:
         self,
         func: Callable,
         data: Union[xr.DataArray, List[xr.DataArray], Tuple[xr.DataArray]],
+        *args: tuple,
         freq: str = 'YS',
         aggregation: str = 'mean',
         dim_aggr: str = 'time',
-        *args: tuple,
         **kwargs: dict,
     ) -> xr.DataArray:
 
@@ -45,7 +45,9 @@ class IndicatorDeltaScaling:
             return result.mean(dim_aggr)
         elif aggregation is None:
             return result
-    
+        else:
+            raise ValueError("aggregation must be 'mean' or None.")
+
     def _add_attributes(self, data: xr.DataArray, short_name: str = None, long_name: str = None, units: str = None, delta_mode: str = None, delta_factor_percentage: bool = True) -> xr.DataArray:
         """Adds attributes to a DataArray."""
         if delta_mode == '+':
@@ -92,45 +94,56 @@ class IndicatorDeltaScaling:
         reference_data = utils.unchunk_time(reference_data)
 
         with ProgressBar():
+            # Slice the input data into the historical and future periods
+            ref_hist = utils.slice_data(reference_data, self.hist_period)
+            model_hist = utils.slice_data(model_data, self.hist_period)
+            model_fut = [utils.slice_data(model_data, f_pi) for f_pi in self.fut_period]
 
             if correct_threshold:
+                thresh = kwargs.get('thresh')
+                if thresh is None:
+                    raise ValueError("correct_threshold=True requires a 'thresh' keyword argument.")
                 if isinstance(thresh, list):
-                    thresh_corrected_list = []
-                    for thi in thresh:
-                        thresh_corrected_i = utils.correct_threshold(utils.slice_data(model_data, self.hist_period), utils.slice_data(reference_data, self.hist_period), thresh=thi, delta_mode=delta_mode)
-                        thresh_corrected_list.append(thresh_corrected_i)
-                        kwargs_model = {'thresh': thresh_corrected_list}
+                    # One threshold per input variable, matched by position
+                    if not isinstance(model_hist, (list, tuple)) or len(thresh) != len(model_hist):
+                        raise ValueError("A list of thresholds requires a list of input variables of the same length.")
+                    thresh_corrected = [
+                        utils.correct_threshold(m, r, thresh=thi, delta_mode=delta_mode)
+                        for m, r, thi in zip(model_hist, ref_hist, thresh)
+                    ]
                 else:
-                    thresh_corrected = utils.correct_threshold(utils.slice_data(model_data, self.hist_period), utils.slice_data(reference_data, self.hist_period), **kwargs)
-                    kwargs_model = {'thresh': thresh_corrected}
+                    thresh_corrected = utils.correct_threshold(model_hist, ref_hist, thresh=thresh, delta_mode=delta_mode)
+                # Keep the rest of the kwargs, only replace the threshold
+                kwargs_model = {**kwargs, 'thresh': thresh_corrected}
             else:
                 kwargs_model = kwargs
             kwargs_ref = kwargs
             
             # 1. Historical computations
             ind_ref = self._eval_indicator(
-                indicator_func, utils.slice_data(reference_data, self.hist_period), *args, freq=freq, aggregation=aggregation, **kwargs_ref,
+                indicator_func, ref_hist, *args, freq=freq, aggregation=aggregation, **kwargs_ref,
             )
             ind_hist0 = self._eval_indicator(
-                indicator_func, utils.slice_data(model_data, self.hist_period), *args, freq=freq, aggregation=aggregation, **kwargs_model,
+                indicator_func, model_hist, *args, freq=freq, aggregation=aggregation, **kwargs_model,
             )
             ind_hist = ind_ref.broadcast_like(ind_hist0)
 
             if compute:
                 ind_ref = ind_ref.compute()
+                ind_hist0 = ind_hist0.compute()
                 ind_hist = ind_hist.compute()
 
             # 2. Future delta-scaling computations
             fut_list = []
             delta_list = []
-            for f_pi in self.fut_period:
+            for f_pi, model_fut_i in zip(self.fut_period, model_fut):
                 ind_fut0 = self._eval_indicator(
-                    indicator_func, utils.slice_data(model_data, f_pi), *args, **kwargs_model, freq=freq, aggregation=aggregation
+                    indicator_func, model_fut_i, *args, **kwargs_model, freq=freq, aggregation=aggregation
                 )
                 if compute:
                     ind_fut0 = ind_fut0.compute()
 
-                ind_fut, delta = utils.apply_delta_scaling(ind_hist, ind_hist0, ind_fut0, delta_mode=delta_mode, delta_factor_limit=delta_factor_limit, compute=compute)
+                ind_fut, delta = utils.apply_delta_scaling(ind_hist, ind_hist0, ind_fut0, delta_mode=delta_mode, delta_factor_limit=delta_factor_limit, delta_factor_percentage=delta_factor_percentage, compute=compute)
                 f_pi_str = f"{f_pi[0]}-{f_pi[1]}"
                 
                 ind_fut = ind_fut.assign_coords(period=f_pi_str).expand_dims('period')
