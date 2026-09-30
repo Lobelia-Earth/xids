@@ -1,7 +1,7 @@
 [project]
-authors = [{ name = "saschahofmann", email = "sascha.kelevra@gmail.com" }]
+authors = [{ name = "susopeiz", email = "susopeiz@gmail.com" }, { name = "saschahofmann", email = "sascha.kelevra@gmail.com" }]
 dependencies = []
-name = "indicator-delta-scaling"
+name = "xids"
 requires-python = ">= 3.11"
 version = "0.1.0"
 
