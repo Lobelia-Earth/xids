@@ -116,14 +116,16 @@ pixi shell            # or use direnv with the provided .envrc
 Core dependencies are `xarray`, `dask` and `zarr`. `xclim` is needed for
 `xids.indicators` and for most of the examples.
 
-## Example: TXx (annual maximum of daily maximum temperature)
+## Examples
 
-This example comes from
+These examples come from
 [`notebooks/demostration_different_indicators.ipynb`](notebooks/demostration_different_indicators.ipynb).
-It uses ERA5 as the observational reference and a CMIP6 ensemble with several
+They use ERA5 as the observational reference and a CMIP6 ensemble with several
 realizations as the model. The notebook covers more indicators: DTRx, RX1day,
-RX1day 20-yr return level, TX30, CDD, PRCPTOT, CoolDD, WPD, FWI90p and SPI12
+RX1day 20-yr return level, TX30, CDD, PRCPTOT, WPD, FWI90p and SPI12
 spells/severity.
+
+### TXx (annual maximum of daily maximum temperature)
 
 ```python
 import xarray as xr
@@ -170,6 +172,68 @@ txx_fut.plot(col='realization', row='period')     # bias-adjusted future TXx = t
 
 `txx_fut` has dimensions `(period, realization, lat, lon)`. Its spatial pattern
 comes from the observations and its change signal from each ensemble member.
+
+### CoolDD with threshold correction
+
+Cooling degree days (CoolDD, Spinoni et al., 2018) are computed from `tasmin`,
+`tas` and `tasmax`, each compared with a 22.5 ºC threshold. Because the model is
+biased, a fixed 22.5 ºC does not mean the same thing in the model as in the
+observations, and a biased model can sit near the threshold where the observed
+climate does not (or the reverse).
+
+With `correct_threshold=True`, each threshold is replaced, at every grid point and
+for every realization, by the model value at the **same quantile** that 22.5 ºC
+has in the reference over the historical period. The reference indicator still
+uses the original 22.5 ºC. When `thresh` is a list, the thresholds are paired with
+the input variables by position.
+
+```python
+from xids import IndicatorDeltaScaling, utils
+from xids.indicators import get_cooldd
+
+ids = IndicatorDeltaScaling(
+    hist_period=['1951', '1970'],
+    fut_period=[['1971', '1990'], ['1991', '2010']],
+)
+
+cooldd_ref, cooldd_hist, cooldd_fut, cooldd_delta = ids.compute_indicator(
+    indicator_func=get_cooldd,
+    reference_data=[tasmin_ref, tas_ref, tasmax_ref],        # same order as get_cooldd's arguments
+    model_data=[tasmin_model, tas_model, tasmax_model],
+    thresh=[22.5, 22.5, 22.5],                               # one threshold per variable
+    correct_threshold=True,                                  # adjust thresholds to the model climate
+    freq='YS',
+    delta_mode='+',
+    compute=True,
+    short_name='cooldd',
+    long_name='Cooling Degree Days',
+    units='Degree Days',
+)
+```
+
+`compute_indicator` doesn't return the corrected thresholds. To see them, call
+`utils.correct_threshold` directly. For example, the corrected `tasmax` threshold
+for each realization:
+
+```python
+thresh_tasmax_corr = utils.correct_threshold(
+    tasmax_model.sel(time=slice('1951', '1970')),
+    tasmax_ref.sel(time=slice('1951', '1970')),
+    thresh=22.5,
+    delta_mode='+',
+)
+thresh_tasmax_corr.plot(col='realization', cmap='RdBu_r', center=22.5)
+```
+
+In the corrected-threshold map, values above 22.5 ºC mark places where the model
+runs warm and values below 22.5 ºC places where it runs cold. The notebook also
+plots the difference between the corrected and uncorrected deltas.
+
+The same option works for single-threshold `xclim` indices, for example
+`xclim.indices.tx_days_above` with `thresh='30 degC'` (TX30) or
+`xclim.indices.maximum_consecutive_dry_days` with `thresh='1 mm/day'` (CDD). The
+number is read from the string and the units are kept, so the input data must
+already be in those units.
 
 ### Other variations shown in the notebook
 
