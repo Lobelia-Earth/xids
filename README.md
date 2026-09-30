@@ -6,11 +6,11 @@ computed from climate model projections, such as CMIP6.
 
 ## Goal
 
-Raw climate model output is biased compared with observations. The usual fix is
+Raw climate model outputs are biased compared with observations. The usual fix is
 to bias-adjust the input variables (temperature, precipitation, wind, …) and then
-compute indicators from the adjusted variables. That approach is expensive, and
-it does not guarantee realistic values for indicators built from several
-variables or from extremes.
+compute indicators from the adjusted variables. That approach is expensive and
+it might introduce artificial noise and distortions to both the observational 
+reference and the climate model projected signals.
 
 IDS works on the **indicator** instead of the input variables:
 
